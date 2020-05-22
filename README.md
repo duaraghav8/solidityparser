@@ -2,17 +2,6 @@
 This is a Go module to parse [Solidity](https://solidity.readthedocs.io/en/latest/), based on [Federico](https://github.com/federicobond) 's [ANTLR grammar](https://github.com/solidityj/solidity-antlr4) for the language.
 
 ## Usage
-`sample.sol`
-
-```
-contract Foo {
-	constructor() {}
-	function bar(uint x) {}
-}
-```
-
-`main.go`
-
 ```go
 package main
 
@@ -20,30 +9,46 @@ import (
 	"fmt"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/duaraghav8/solidityparser"
-	"os"
 )
 
-type TreeShapeListener struct {
+var code = `
+contract Foo {
+	function bar(uint x) {}
+}
+
+contract Bar {
+	constructor(){}
+}
+`
+
+// EverythingListener listens for all rules, i.e., it visits
+// all AST nodes.
+type EverythingListener struct {
 	*solidityparser.BaseSolidityListener
 }
 
-func NewTreeShapeListener() *TreeShapeListener {
-	return new(TreeShapeListener)
+func NewEverythingListener() *EverythingListener {
+	return new(EverythingListener)
 }
 
-func (l *TreeShapeListener) EnterEveryRule(ctx antlr.ParserRuleContext) {
-	fmt.Println(ctx.GetText())
+func (l *EverythingListener) EnterEveryRule(ctx antlr.ParserRuleContext) {
+	fmt.Println("Entered a rule")
+	fmt.Println(ctx.GetRuleIndex())
+	fmt.Printf("Text: %s\nStart line: %d\n", ctx.GetText(), ctx.GetStart().GetLine())
+	fmt.Println("--------------")
 }
 
 func main() {
-	code, _ := antlr.NewFileStream("./sample.sol")
+	code := antlr.NewInputStream(code)
 	lexer := solidityparser.NewSolidityLexer(code)
 	stream := antlr.NewCommonTokenStream(lexer, 0)
-	p := solidityparser.NewSolidityParser(stream)
-	p.AddErrorListener(antlr.NewDiagnosticErrorListener(true))
-	p.BuildParseTrees = true
-	tree := p.SourceUnit()
-	antlr.ParseTreeWalkerDefault.Walk(NewTreeShapeListener(), tree)
+
+	parser := solidityparser.NewSolidityParser(stream)
+	parser.AddErrorListener(antlr.NewDiagnosticErrorListener(true))
+	parser.BuildParseTrees = true
+
+	tree := parser.SourceUnit()
+	antlr.ParseTreeWalkerDefault.Walk(NewEverythingListener(), tree)
 }
 ```
 
